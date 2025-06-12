@@ -1,16 +1,25 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import folium_static
 
-# Page configuration
-st.set_page_config(page_title="🔗 Association Rules in Jerusalem", layout="wide")
-st.title("🔗 Association Rules in Jerusalem Tourism Activities")
+# 🟢 קונפיגורציה כללית לעמוד
+st.set_page_config(page_title="🔗 קשרים בין אתרים בירושלים", layout="wide")
 
-# Function for color by confidence
+# 🔵 באנר עליון
+st.markdown("""
+    <div style='background-color:#EAF4FF;padding:30px;border-radius:10px;margin-bottom:30px;'>
+        <h1 style='color:#003366;text-align:center;'>🔗 קשרים בין אתרים בירושלים</h1>
+        <p style='text-align:center;font-size:18px;'>
+            מערכת אינטראקטיבית לניתוח תנועת תיירים בין אתרים בירושלים – בחר פילוח, רף סינון, ואתר יעד.
+        </p>
+    </div>
+""", unsafe_allow_html=True)
+
+# פונקציית צבע לפי Confidence
 def get_color_by_confidence(conf):
     if conf >= 0.8:
-        return "#800000"  # Dark Bordeaux
+        return "#800000"
     elif conf >= 0.7:
         return "red"
     elif conf >= 0.6:
@@ -22,7 +31,7 @@ def get_color_by_confidence(conf):
     else:
         return "gray"
 
-# קואורדינטות מדויקות לפי שמות בעברית מתוך הקובץ
+# 🟨 קואורדינטות אתרים
 location_coords = {
     "הר הזיתים": (31.77833, 35.24389),
     "הכותל המערבי": (31.7767, 35.2345),
@@ -45,72 +54,71 @@ location_coords = {
     "גן הקבר": (31.7838528, 35.2299778),
 }
 
-# Sidebar filters
-st.sidebar.header("🧭 Filters")
-age_option = st.sidebar.selectbox("Select Age Group", ["ALL", "Young", "Old"])
-religion_option = st.sidebar.selectbox("Select Religion", ["ALL", "Jewish", "Christian"])
-continent_option = st.sidebar.selectbox("Select Continent", ["ALL", "Europe", "America"])
+# 🧭 פילטרים בצד
+st.sidebar.header("🎛️ סינון נתונים")
+age_option = st.sidebar.selectbox("בחר קבוצת גיל", ["הכל", "צעירים", "מבוגרים"])
+religion_option = st.sidebar.selectbox("בחר דת", ["הכל", "יהודים", "נוצרים"])
+continent_option = st.sidebar.selectbox("בחר יבשת", ["הכל", "אירופה", "אמריקה"])
+min_support = st.sidebar.slider("רף מינימלי - Support", 0.0, 1.0, 0.05, 0.01)
+min_confidence = st.sidebar.slider("רף מינימלי - Confidence", 0.0, 1.0, 0.4, 0.01)
 
-# Threshold sliders
-min_support = st.sidebar.slider("Minimum Support", 0.0, 1.0, 0.05, 0.01)
-min_confidence = st.sidebar.slider("Minimum Confidence", 0.0, 1.0, 0.4, 0.01)
-
-# Filter validation
+# בדיקת סינון יחיד
 filters_selected = sum([
-    age_option != "ALL",
-    religion_option != "ALL",
-    continent_option != "ALL"
+    age_option != "הכל",
+    religion_option != "הכל",
+    continent_option != "הכל"
 ])
-
 if filters_selected > 1:
-    st.warning("Please select only one filter (Age OR Religion OR Continent)")
+    st.warning("אנא בחר רק פילטר אחד (גיל או דת או יבשת)")
     st.stop()
 
-# File selection
-if age_option == "Young":
+# 🗂️ בחירת קובץ
+if age_option == "צעירים":
     file_name = "association_rules_jerusalem_young.xlsx"
-elif age_option == "Old":
+elif age_option == "מבוגרים":
     file_name = "association_rules_jerusalem_old.xlsx"
-elif religion_option == "Jewish":
+elif religion_option == "יהודים":
     file_name = "association_rules_jerusalem_jewish.xlsx"
-elif religion_option == "Christian":
+elif religion_option == "נוצרים":
     file_name = "association_rules_jerusalem_christian.xlsx"
-elif continent_option == "Europe":
+elif continent_option == "אירופה":
     file_name = "association_rules_jerusalem_europe.xlsx"
-elif continent_option == "America":
+elif continent_option == "אמריקה":
     file_name = "association_rules_jerusalem_america.xlsx"
 else:
     file_name = "association_rules_jerusalem_all.xlsx"
 
-# Load Excel file
+# 📥 טעינת הקובץ
 try:
     df = pd.read_excel(file_name)
 except FileNotFoundError:
-    st.error(f"File not found: {file_name}")
+    st.error(f"שגיאה: הקובץ לא נמצא ({file_name})")
     st.stop()
 
-# Filter by source location
-available_sources = sorted(df['From'].dropna().unique())
-selected_source = st.sidebar.selectbox("Filter by Source Location", ["ALL"] + available_sources)
-if selected_source != "ALL":
-    df = df[df['From'] == selected_source]
+# בחירת אתר יעד (To)
+available_targets = sorted(df['To'].dropna().unique())
+selected_target = st.sidebar.selectbox("סינון לפי אתר יעד", ["הכל"] + available_targets)
+if selected_target != "הכל":
+    df = df[df['To'] == selected_target]
 
-# Apply threshold filters
+# סינון לפי ספים
 df = df[(df['Support'] >= min_support) & (df['Confidence'] >= min_confidence)]
 
-# Display metrics
-st.markdown("""
-### 📊 Association Rules Table
-Only rules starting **from** the selected source and meeting threshold criteria are shown below.
-""")
-st.dataframe(df.reset_index(drop=True), use_container_width=True)
+# הצגת טבלה
+st.markdown("### 🧾 טבלת חוקי אסוציאציה")
+if df.empty:
+    st.warning("לא נמצאו חוקים התואמים את הקריטריונים שבחרת.")
+else:
+    df_clean = df.drop(columns=["Lift", "Intersection"], errors='ignore')
+    df_clean = df_clean.sort_values(by="Support", ascending=False).reset_index(drop=True)
+    st.dataframe(df_clean, use_container_width=True)
 
-# Map
+# 🗺️ מפה אינטראקטיבית
+st.markdown("### 🗺️ מפת קשרים אינטראקטיבית")
 st.markdown("""
-### 🗺️ Interactive Map of Associations
-- **Line Thickness** = Support Level
-- **Line Color** = Confidence Level
-- **Arrow Direction** = Rule Direction
+- **עובי הקו** מייצג את רמת ה-Support  
+- **צבע הקו** מייצג את ה-Confidence  
+- **החצים** מייצגים את כיוון התנועה
 """)
 m = folium.Map(location=[31.7767, 35.2345], zoom_start=13)
 
@@ -121,21 +129,16 @@ for _, row in df.iterrows():
         coords_from = location_coords[from_place]
         coords_to = location_coords[to_place]
 
-        # Draw line with arrow marker
         folium.PolyLine(
             locations=[coords_from, coords_to],
-            popup=(
-                f"<b>{from_place} ➝ {to_place}</b><br>"
-                f"Support: {row['Support']:.2f}<br>"
-                f"Confidence: {row['Confidence']:.2f}<br>"
-                f"Lift: {row['Lift']:.2f}"
-            ),
-            tooltip=f"{from_place} → {to_place}\nSupport: {row['Support']:.2f}, Confidence: {row['Confidence']:.2f}",
+            popup=(f"<b>{from_place} ➝ {to_place}</b><br>"
+                   f"Support: {row['Support']:.2f}<br>"
+                   f"Confidence: {row['Confidence']:.2f}"),
+            tooltip=f"{from_place} → {to_place} (Support: {row['Support']:.2f}, Confidence: {row['Confidence']:.2f})",
             weight=2 + row['Support'] * 15,
             color=get_color_by_confidence(row['Confidence'])
         ).add_to(m)
 
-        # Add direction arrow at midpoint
         mid_lat = (coords_from[0] + coords_to[0]) / 2
         mid_lon = (coords_from[1] + coords_to[1]) / 2
         folium.RegularPolygonMarker(
@@ -150,14 +153,14 @@ for _, row in df.iterrows():
 
 folium_static(m)
 
-# Legend
+# 🔵 מקרא צבעים
 st.markdown("""
 ---
-#### 🎨 Color Legend (Confidence)
-- **Dark Bordeaux** ≥ 0.8  
-- **Red**: 0.7–0.79  
-- **Orange**: 0.6–0.69  
-- **Yellow**: 0.5–0.59  
-- **Blue**: 0.4–0.49  
-- **Gray**: < 0.4  
-""")
+#### 🎨 מקרא צבעים לפי Confidence
+- <span style='color:#800000;'>⬤</span>  ≥ 0.8 – בורדו כהה  
+- <span style='color:red;'>⬤</span> 0.7–0.79 – אדום  
+- <span style='color:orange;'>⬤</span> 0.6–0.69 – כתום  
+- <span style='color:yellow;'>⬤</span> 0.5–0.59 – צהוב  
+- <span style='color:blue;'>⬤</span> 0.4–0.49 – כחול  
+- <span style='color:gray;'>⬤</span> < 0.4 – אפור  
+""", unsafe_allow_html=True)
