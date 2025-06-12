@@ -6,7 +6,7 @@ from streamlit_folium import folium_static
 # 🟢 קונפיגורציה כללית לעמוד
 st.set_page_config(page_title="🔗 קשרים בין אתרים בירושלים", layout="wide")
 
-# 🔵 באנר עליון
+# 🔹 באנר עליון
 st.markdown("""
     <div style='background-color:#EAF4FF;padding:30px;border-radius:10px;margin-bottom:30px;'>
         <h1 style='color:#003366;text-align:center;'>🔗 קשרים בין אתרים בירושלים</h1>
@@ -31,7 +31,7 @@ def get_color_by_confidence(conf):
     else:
         return "gray"
 
-# 🟨 קואורדינטות אתרים
+# 📘 קואורדינטות אתרים
 location_coords = {
     "הר הזיתים": (31.77833, 35.24389),
     "הכותל המערבי": (31.7767, 35.2345),
@@ -54,15 +54,18 @@ location_coords = {
     "גן הקבר": (31.7838528, 35.2299778),
 }
 
-# 🧭 פילטרים בצד
-st.sidebar.header("🎛️ סינון נתונים")
-age_option = st.sidebar.selectbox("בחר קבוצת גיל", ["הכל", "צעירים", "מבוגרים"])
-religion_option = st.sidebar.selectbox("בחר דת", ["הכל", "יהודים", "נוצרים"])
-continent_option = st.sidebar.selectbox("בחר יבשת", ["הכל", "אירופה", "אמריקה"])
-min_support = st.sidebar.slider("רף מינימלי - Support", 0.0, 1.0, 0.05, 0.01)
-min_confidence = st.sidebar.slider("רף מינימלי - Confidence", 0.0, 1.0, 0.4, 0.01)
+# 🗭 פילטרים בצד
+st.sidebar.header(":mag_right: סינון נתונים")
+age_option = st.sidebar.selectbox(":busts_in_silhouette: בחר קבוצת גיל", ["הכל", "צעירים", "מבוגרים"])
+religion_option = st.sidebar.selectbox(":star_of_david: בחר דת", ["הכל", "יהודים", "נוצרים"])
+continent_option = st.sidebar.selectbox(":earth_africa: בחר יבשת", ["הכל", "אירופה", "אמריקה"])
 
-# בדיקת סינון יחיד
+support_threshold_percent = st.sidebar.number_input(":bar_chart: רף תמיכה (%)", min_value=0, max_value=100, value=5, step=1)
+confidence_threshold_percent = st.sidebar.number_input(":closed_lock_with_key: רף ביטחון (%)", min_value=0, max_value=100, value=40, step=1)
+
+support_threshold = support_threshold_percent / 100
+confidence_threshold = confidence_threshold_percent / 100
+
 filters_selected = sum([
     age_option != "הכל",
     religion_option != "הכל",
@@ -88,33 +91,31 @@ elif continent_option == "אמריקה":
 else:
     file_name = "association_rules_jerusalem_all.xlsx"
 
-# 📥 טעינת הקובץ
 try:
     df = pd.read_excel(file_name)
 except FileNotFoundError:
     st.error(f"שגיאה: הקובץ לא נמצא ({file_name})")
     st.stop()
 
-# בחירת אתר יעד (To)
 available_targets = sorted(df['To'].dropna().unique())
-selected_target = st.sidebar.selectbox("סינון לפי אתר יעד", ["הכל"] + available_targets)
+selected_target = st.sidebar.selectbox(":round_pushpin: סינון לפי אתר יעד", ["הכל"] + available_targets)
 if selected_target != "הכל":
     df = df[df['To'] == selected_target]
 
-# סינון לפי ספים
-df = df[(df['Support'] >= min_support) & (df['Confidence'] >= min_confidence)]
+df = df[(df['Support'] >= support_threshold) & (df['Confidence'] >= confidence_threshold)]
 
-# הצגת טבלה
-st.markdown("### 🧾 טבלת חוקי אסוציאציה")
+st.markdown("### 📋 טבלת חוקי אסוציאציה")
 if df.empty:
     st.warning("לא נמצאו חוקים התואמים את הקריטריונים שבחרת.")
 else:
     df_clean = df.drop(columns=["Lift", "Intersection"], errors='ignore')
     df_clean = df_clean.sort_values(by="Support", ascending=False).reset_index(drop=True)
+    df_clean["Support"] = (df_clean["Support"] * 100).round(1).astype(str) + "%"
+    df_clean["Confidence"] = (df_clean["Confidence"] * 100).round(1).astype(str) + "%"
     st.dataframe(df_clean, use_container_width=True)
 
-# 🗺️ מפה אינטראקטיבית
-st.markdown("### 🗺️ מפת קשרים אינטראקטיבית")
+# 🗼 מפה אינטראקטיבית
+st.markdown("### 🌍 מפת קשרים אינטראקטיבית")
 st.markdown("""
 - **עובי הקו** מייצג את רמת ה-Support  
 - **צבע הקו** מייצג את ה-Confidence  
@@ -131,7 +132,7 @@ for _, row in df.iterrows():
 
         folium.PolyLine(
             locations=[coords_from, coords_to],
-            popup=(f"<b>{from_place} ➝ {to_place}</b><br>"
+            popup=(f"<b>{from_place} ➔ {to_place}</b><br>"
                    f"Support: {row['Support']:.2f}<br>"
                    f"Confidence: {row['Confidence']:.2f}"),
             tooltip=f"{from_place} → {to_place} (Support: {row['Support']:.2f}, Confidence: {row['Confidence']:.2f})",
@@ -153,7 +154,7 @@ for _, row in df.iterrows():
 
 folium_static(m)
 
-# 🔵 מקרא צבעים
+# 🔹 מקרא צבעים
 st.markdown("""
 ---
 #### 🎨 מקרא צבעים לפי Confidence
